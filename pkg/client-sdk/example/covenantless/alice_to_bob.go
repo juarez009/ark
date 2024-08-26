@@ -42,12 +42,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("alice onchain address: ", aliceOnchainAddr)
+	return
 
-	if _, err := runCommand("nigiri", "faucet", aliceOnchainAddr); err != nil {
-		log.Fatal(err)
-	}
+	/* 	if _, err := runCommand("nigiri", "faucet", aliceOnchainAddr); err != nil {
+	   		log.Fatal(err)
+	   	}
 
-	time.Sleep(5 * time.Second)
+	   	time.Sleep(5 * time.Second) */
 
 	onboardAmount := uint64(20000)
 	log.Infof("alice is onboarding with %d sats offchain...", onboardAmount)

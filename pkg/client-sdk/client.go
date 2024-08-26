@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -137,6 +138,8 @@ func (a *arkClient) Init(
 	if err != nil {
 		return fmt.Errorf("failed to connect to asp: %s", err)
 	}
+
+	log.Printf("asp netwro: %v", info.Network)
 
 	explorerSvc, err := getExplorer(supportedNetworks, info.Network)
 	if err != nil {
