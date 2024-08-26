@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	"github.com/ark-network/ark/pkg/client-sdk/explorer"
 	"github.com/ark-network/ark/pkg/client-sdk/internal/utils"
@@ -230,7 +231,14 @@ func (a *arkClient) ping(
 	return ticker.Stop
 }
 
-func (a *arkClient) listenForPayments(ctx context.Context, pubKey string, paymentsCh chan<- client.Payment) error {
+func (a *arkClient) listenForPayments(ctx context.Context, paymentsCh chan<- client.Payment) error {
+	offchainAddr, _, err := a.wallet.NewAddress(ctx, false)
+	if err != nil {
+		return err
+	}
+
+	_, userPubkey, _, _ := common.DecodeAddress(offchainAddr)
+	pubKey := hex.EncodeToString(userPubkey.SerializeCompressed())
 	eventsCh, err := a.client.GetEventStream(ctx, "")
 	if err != nil {
 		return err

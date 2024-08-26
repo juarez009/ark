@@ -30,6 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	logPayments(ctx, aliceArkClient)
 
 	if err := aliceArkClient.Unlock(ctx, password); err != nil {
 		log.Fatal(err)
@@ -78,6 +79,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	logPayments(ctx, bobArkClient)
 
 	if err := bobArkClient.Unlock(ctx, password); err != nil {
 		log.Fatal(err)
@@ -228,4 +230,24 @@ func generateBlock() error {
 
 	time.Sleep(6 * time.Second)
 	return nil
+}
+
+func logPayments(ctx context.Context, client arksdk.ArkClient) {
+	go func() {
+		paymentChan, err := client.PaymentNotification(ctx)
+		if err != nil {
+			log.Error(err)
+			log.Infof("failed to listen to payment notifications, exiting ...")
+			return
+		}
+
+		for payment := range paymentChan {
+			log.Infof(
+				"payment received: tx_id:%s, vout: %d, amount: %d, spent: %v, pending: %v",
+				payment.TxID, payment.VOut, payment.Amount, payment.Spent, payment.Pending,
+			)
+		}
+		log.Info(time.Now().Format("2006-01-02 15:04:05"))
+		log.Infof("payment notification channel closed")
+	}()
 }

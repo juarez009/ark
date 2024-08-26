@@ -27,7 +27,7 @@ type ArkClient interface {
 	) (string, error)
 	SendAsync(ctx context.Context, withExpiryCoinselect bool, receivers []Receiver) (string, error)
 	ClaimAsync(ctx context.Context) (string, error)
-	PaymentNotification(ctx context.Context, pubKey string) (<-chan client.Payment, error)
+	PaymentNotification(ctx context.Context) (<-chan client.Payment, error)
 }
 
 type Receiver interface {

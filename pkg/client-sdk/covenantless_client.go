@@ -768,12 +768,11 @@ func (a *covenantlessArkClient) ClaimAsync(
 
 func (a *covenantlessArkClient) PaymentNotification(
 	ctx context.Context,
-	pubKey string,
 ) (<-chan client.Payment, error) {
 	paymentsCh := make(chan client.Payment)
 	go func() {
 		defer close(paymentsCh)
-		err := a.listenForPayments(ctx, pubKey, paymentsCh)
+		err := a.listenForPayments(ctx, paymentsCh)
 		if err != nil {
 			log.Printf("Error listening for payments: %v", err)
 		}
