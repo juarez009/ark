@@ -193,7 +193,7 @@ func (a *Client) ArkServiceGetInfo(params *ArkServiceGetInfoParams) (*ArkService
 }
 
 /*
-ArkServiceGetRound ts o d o b t c sign tree rpc
+ArkServiceGetRound ark service get round API
 */
 func (a *Client) ArkServiceGetRound(params *ArkServiceGetRoundParams) (*ArkServiceGetRoundOK, error) {
 	// TODO: Validate the params before sending
@@ -357,6 +357,62 @@ func (a *Client) ArkServiceRegisterPayment(params *ArkServiceRegisterPaymentPara
 		return nil, err
 	}
 	return result.(*ArkServiceRegisterPaymentOK), nil
+
+}
+
+/*
+ArkServiceSendTreeNonces ark service send tree nonces API
+*/
+func (a *Client) ArkServiceSendTreeNonces(params *ArkServiceSendTreeNoncesParams) (*ArkServiceSendTreeNoncesOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewArkServiceSendTreeNoncesParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "ArkService_SendTreeNonces",
+		Method:             "POST",
+		PathPattern:        "/v1/payment/tree/nonces",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ArkServiceSendTreeNoncesReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*ArkServiceSendTreeNoncesOK), nil
+
+}
+
+/*
+ArkServiceSendTreeSignatures ark service send tree signatures API
+*/
+func (a *Client) ArkServiceSendTreeSignatures(params *ArkServiceSendTreeSignaturesParams) (*ArkServiceSendTreeSignaturesOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewArkServiceSendTreeSignaturesParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "ArkService_SendTreeSignatures",
+		Method:             "POST",
+		PathPattern:        "/v1/payment/tree/signatures",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ArkServiceSendTreeSignaturesReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*ArkServiceSendTreeSignaturesOK), nil
 
 }
 

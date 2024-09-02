@@ -19,11 +19,17 @@ type V1GetEventStreamResponse struct {
 	// round failed
 	RoundFailed *V1RoundFailed `json:"roundFailed,omitempty"`
 
-	// TODO: BTC add "signTree" event
+	// round finalization
 	RoundFinalization *V1RoundFinalizationEvent `json:"roundFinalization,omitempty"`
 
 	// round finalized
 	RoundFinalized *V1RoundFinalizedEvent `json:"roundFinalized,omitempty"`
+
+	// round signing
+	RoundSigning *V1RoundSigningEvent `json:"roundSigning,omitempty"`
+
+	// round signing nonces generated
+	RoundSigningNoncesGenerated *V1RoundSigningNoncesGeneratedEvent `json:"roundSigningNoncesGenerated,omitempty"`
 }
 
 // Validate validates this v1 get event stream response
@@ -39,6 +45,14 @@ func (m *V1GetEventStreamResponse) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateRoundFinalized(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateRoundSigning(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateRoundSigningNoncesGenerated(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -94,6 +108,42 @@ func (m *V1GetEventStreamResponse) validateRoundFinalized(formats strfmt.Registr
 		if err := m.RoundFinalized.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("roundFinalized")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1GetEventStreamResponse) validateRoundSigning(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.RoundSigning) { // not required
+		return nil
+	}
+
+	if m.RoundSigning != nil {
+		if err := m.RoundSigning.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("roundSigning")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1GetEventStreamResponse) validateRoundSigningNoncesGenerated(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.RoundSigningNoncesGenerated) { // not required
+		return nil
+	}
+
+	if m.RoundSigningNoncesGenerated != nil {
+		if err := m.RoundSigningNoncesGenerated.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("roundSigningNoncesGenerated")
 			}
 			return err
 		}

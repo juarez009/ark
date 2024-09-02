@@ -1,4 +1,4 @@
-# Ark Monorepo
+# Ark
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/ark-network/ark)](https://github.com/ark-network/ark/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fark--network%2Fark-blue?logo=docker)](https://github.com/ark-network/ark/pkgs/container/ark)
@@ -27,7 +27,7 @@ Welcome to the Ark monorepo, a comprehensive solution for off-chain Bitcoin and 
 ## Usage Documentation
 
 For a comprehensive guide on how to set up and use Ark, please visit our [Developer Portal](https://arkdev.info).
-For a quick-start with Docker, head over to our [Quick Start guide](https://arkdev.info/docs/quick-start/intro) where you can setup an Ark Server and Clients in a local Bitcoin regtest network.
+For a quick-start with Docker, head over to our [Quick Start guide](https://arkdev.info/docs/quick-start/overview) where you can setup an Ark Server and Clients in a local Bitcoin regtest network.
 
 ## Repository Structure
 
@@ -81,7 +81,7 @@ This will compile the `arkd` and `ark` binaries for your current architecture. F
 4. Install dependencies:
 
    ```sh
-   go mod download
+   go work sync
    ```
 
 5. Build the project:
@@ -97,7 +97,7 @@ Note: You need to run `make build` in both the `server` and `client` directories
 
 ## Support
 
-If you encounter any issues or have questions, please file an issue on our [GitHub Issues](https://github.com/ark-network/ark/issues) page. 
+If you encounter any issues or have questions, please file an issue on our [GitHub Issues](https://github.com/ark-network/ark/issues) page.
 
 ## Security
 
