@@ -56,7 +56,7 @@ var (
 type arkClient struct {
 	*storetypes.ConfigData
 	wallet   wallet.WalletService
-	sdkStore storetypes.Store
+	store    storetypes.Store
 	explorer explorer.Explorer
 	client   client.ASPClient
 
@@ -120,13 +120,13 @@ func (a *arkClient) InitWithWallet(
 		BoardingDescriptorTemplate: info.BoardingDescriptorTemplate,
 		ForfeitAddress:             info.ForfeitAddress,
 	}
-	if err := a.sdkStore.ConfigStore().AddData(ctx, storeData); err != nil {
+	if err := a.store.ConfigStore().AddData(ctx, storeData); err != nil {
 		return err
 	}
 
 	if _, err := args.Wallet.Create(ctx, args.Password, args.Seed); err != nil {
 		//nolint:all
-		a.sdkStore.ConfigStore().CleanData(ctx)
+		a.store.ConfigStore().CleanData(ctx)
 		return err
 	}
 
@@ -187,18 +187,18 @@ func (a *arkClient) Init(
 		ExplorerURL:                args.ExplorerURL,
 		ForfeitAddress:             info.ForfeitAddress,
 	}
-	walletSvc, err := getWallet(a.sdkStore.ConfigStore(), &cfgData, supportedWallets)
+	walletSvc, err := getWallet(a.store.ConfigStore(), &cfgData, supportedWallets)
 	if err != nil {
 		return err
 	}
 
-	if err := a.sdkStore.ConfigStore().AddData(ctx, cfgData); err != nil {
+	if err := a.store.ConfigStore().AddData(ctx, cfgData); err != nil {
 		return err
 	}
 
 	if _, err := walletSvc.Create(ctx, args.Password, args.Seed); err != nil {
 		//nolint:all
-		a.sdkStore.ConfigStore().CleanData(ctx)
+		a.store.ConfigStore().CleanData(ctx)
 		return err
 	}
 
@@ -237,7 +237,7 @@ func (a *arkClient) Receive(ctx context.Context) (string, string, error) {
 }
 
 func (a *arkClient) GetTransactionEventChannel() chan storetypes.TransactionEvent {
-	return a.sdkStore.TransactionStore().GetEventChannel()
+	return a.store.TransactionStore().GetEventChannel()
 }
 
 func (a *arkClient) Stop() error {
@@ -245,7 +245,7 @@ func (a *arkClient) Stop() error {
 		a.txStreamCtxCancel()
 	}
 
-	a.sdkStore.Close()
+	a.store.Close()
 
 	return nil
 }

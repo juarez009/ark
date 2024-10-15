@@ -68,7 +68,7 @@ func NewCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
 
 	return &covenantArkClient{
 		&arkClient{
-			sdkStore: sdkStore,
+			store: sdkStore,
 		},
 	}, nil
 }
@@ -112,7 +112,7 @@ func LoadCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
 		&arkClient{
 			ConfigData: cfgData,
 			wallet:     walletSvc,
-			sdkStore:   sdkStore,
+			store:      sdkStore,
 			explorer:   explorerSvc,
 			client:     clientSvc,
 		},
@@ -163,7 +163,7 @@ func LoadCovenantClientWithWallet(
 		&arkClient{
 			ConfigData: cfgData,
 			wallet:     walletSvc,
-			sdkStore:   sdkStore,
+			store:      sdkStore,
 			explorer:   explorerSvc,
 			client:     clientSvc,
 		},
@@ -666,7 +666,7 @@ func (a *covenantArkClient) GetTransactionHistory(
 	ctx context.Context,
 ) ([]storetypes.Transaction, error) {
 	if a.ConfigData.ListenTransactionStream {
-		return a.sdkStore.TransactionStore().GetAllTransactions(ctx)
+		return a.store.TransactionStore().GetAllTransactions(ctx)
 	}
 
 	spendableVtxos, spentVtxos, err := a.ListVtxos(ctx)
@@ -674,7 +674,7 @@ func (a *covenantArkClient) GetTransactionHistory(
 		return nil, err
 	}
 
-	config, err := a.sdkStore.ConfigStore().GetData(ctx)
+	config, err := a.store.ConfigStore().GetData(ctx)
 	if err != nil {
 		return nil, err
 	}

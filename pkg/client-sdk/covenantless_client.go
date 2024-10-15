@@ -69,7 +69,7 @@ func NewCovenantlessClient(sdkStore storetypes.Store) (ArkClient, error) {
 
 	return &covenantlessArkClient{
 		&arkClient{
-			sdkStore: sdkStore,
+			store: sdkStore,
 		},
 	}, nil
 }
@@ -112,7 +112,7 @@ func LoadCovenantlessClient(sdkStore storetypes.Store) (ArkClient, error) {
 		&arkClient{
 			ConfigData: cfgData,
 			wallet:     walletSvc,
-			sdkStore:   sdkStore,
+			store:      sdkStore,
 			explorer:   explorerSvc,
 			client:     clientSvc,
 		},
@@ -163,7 +163,7 @@ func LoadCovenantlessClientWithWallet(
 		&arkClient{
 			ConfigData: cfgData,
 			wallet:     walletSvc,
-			sdkStore:   sdkStore,
+			store:      sdkStore,
 			explorer:   explorerSvc,
 			client:     clientSvc,
 		},
@@ -249,7 +249,7 @@ func (a *covenantlessArkClient) listenForTransactions(ctx context.Context) {
 				continue
 			}
 
-			if err := a.sdkStore.TransactionStore().
+			if err := a.store.TransactionStore().
 				AddTransactions(ctx, newPendingBoardingTxs); err != nil {
 				log.WithError(err).Error("Failed to insert new boarding transactions")
 				continue
@@ -275,7 +275,7 @@ func (a *covenantlessArkClient) listenForBoardingUtxos(ctx context.Context) {
 				continue
 			}
 
-			if err := a.sdkStore.TransactionStore().
+			if err := a.store.TransactionStore().
 				AddTransactions(ctx, newPendingBoardingTxs); err != nil {
 				log.WithError(err).Error("Failed to insert new boarding transactions")
 				continue
@@ -289,7 +289,7 @@ func (a *covenantlessArkClient) listenForBoardingUtxos(ctx context.Context) {
 func (a *covenantlessArkClient) getBoardingPendingTransactions(
 	ctx context.Context,
 ) (map[string]storetypes.Transaction, []storetypes.Transaction, error) {
-	oldTxs, err := a.sdkStore.TransactionStore().GetAllTransactions(ctx)
+	oldTxs, err := a.store.TransactionStore().GetAllTransactions(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -337,7 +337,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 			}
 		}
 
-		if err := a.sdkStore.TransactionStore().
+		if err := a.store.TransactionStore().
 			UpdateTransactions(context.Background(), boardingTxsToUpdate); err != nil {
 			log.WithError(err).Error("Failed to update boarding transactions")
 		}
@@ -350,7 +350,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 			})
 		}
 
-		vtxos, err := a.sdkStore.VtxoStore().
+		vtxos, err := a.store.VtxoStore().
 			GetVtxos(context.Background(), spentKeys)
 		if err != nil {
 			log.WithError(err).Error("Failed to get spent vtxos")
@@ -365,7 +365,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 				vtxosToUpdate = append(vtxosToUpdate, v)
 			}
 
-			if err := a.sdkStore.VtxoStore().
+			if err := a.store.VtxoStore().
 				UpdateVtxos(context.Background(), vtxosToUpdate); err != nil {
 				log.WithError(err).Error("Failed to update spent vtxos")
 			}
@@ -403,13 +403,13 @@ func (a *covenantlessArkClient) processTransactionEvent(
 			}
 		}
 
-		if err := a.sdkStore.VtxoStore().
+		if err := a.store.VtxoStore().
 			AddVtxos(context.Background(), vtxosToInsert); err != nil {
 			log.WithError(err).Error("Failed to insert new vtxos")
 			return
 		}
 
-		if err := a.sdkStore.TransactionStore().
+		if err := a.store.TransactionStore().
 			AddTransactions(context.Background(), txsToInsert); err != nil {
 			log.WithError(err).Error("Failed to insert received transaction")
 			return
@@ -427,7 +427,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 			})
 		}
 
-		vtxos, err := a.sdkStore.VtxoStore().
+		vtxos, err := a.store.VtxoStore().
 			GetVtxos(context.Background(), spentKeys)
 		if err != nil {
 			log.WithError(err).Error("Failed to get spent vtxos")
@@ -443,7 +443,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 				inputAmount += v.Amount
 			}
 
-			if err := a.sdkStore.VtxoStore().
+			if err := a.store.VtxoStore().
 				UpdateVtxos(context.Background(), vtxosToUpdate); err != nil {
 				log.WithError(err).Error("Failed to update spent vtxos")
 				return
@@ -478,7 +478,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 				CreatedAt: time.Now(), //TODO is this ok?
 			}
 
-			if err := a.sdkStore.TransactionStore().
+			if err := a.store.TransactionStore().
 				AddTransactions(context.Background(), []storetypes.Transaction{tx}); err != nil {
 				log.WithError(err).Error("Failed to insert received transaction")
 			}
@@ -507,7 +507,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 						IsPending: true,
 						CreatedAt: time.Now(), //TODO is this ok?
 					}
-					if err := a.sdkStore.TransactionStore().
+					if err := a.store.TransactionStore().
 						AddTransactions(context.Background(), []storetypes.Transaction{tx}); err != nil {
 						log.WithError(err).Error("Failed to insert received transaction")
 					}
@@ -515,7 +515,7 @@ func (a *covenantlessArkClient) processTransactionEvent(
 			}
 		}
 
-		if err := a.sdkStore.VtxoStore().
+		if err := a.store.VtxoStore().
 			AddVtxos(context.Background(), vtxosToInsert); err != nil {
 			log.WithError(err).Error("Failed to insert new vtxos")
 			return
@@ -1113,7 +1113,7 @@ func (a *covenantlessArkClient) GetTransactionHistory(
 	ctx context.Context,
 ) ([]storetypes.Transaction, error) {
 	if a.ConfigData.ListenTransactionStream {
-		return a.sdkStore.TransactionStore().GetAllTransactions(ctx)
+		return a.store.TransactionStore().GetAllTransactions(ctx)
 	}
 
 	if a.ConfigData == nil {
