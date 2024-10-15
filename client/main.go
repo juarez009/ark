@@ -377,7 +377,7 @@ func getArkSdkClient(ctx *cli.Context) (arksdk.ArkClient, error) {
 	dataDir := ctx.String(datadirFlag.Name)
 	sdkRepository, err := store.NewService(store.Config{
 		ConfigStoreType:  store.FileStore,
-		AppDataStoreType: store.Badger,
+		AppDataStoreType: store.KVStore,
 		BaseDir:          dataDir,
 	})
 	if err != nil {

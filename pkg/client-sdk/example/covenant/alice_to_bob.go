@@ -137,9 +137,9 @@ func main() {
 
 func setupArkClient(wallet string) (arksdk.ArkClient, error) {
 	dbDir := common.AppDataDir(path.Join("ark-example", wallet), false)
-	appDataStore, err := store.NewService(store.Config{
+	appDataStore, err := store.NewStore(store.Config{
 		ConfigStoreType:  store.FileStore,
-		AppDataStoreType: store.Badger,
+		AppDataStoreType: store.KVStore,
 		BaseDir:          dbDir,
 	})
 	if err != nil {

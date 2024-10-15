@@ -1,92 +1,88 @@
 package store
 
 import (
-	badgerstore "github.com/ark-network/ark/pkg/client-sdk/store/badger"
-	"github.com/ark-network/ark/pkg/client-sdk/store/domain"
-	"github.com/ark-network/ark/pkg/client-sdk/store/file"
-	"github.com/ark-network/ark/pkg/client-sdk/store/inmemory"
-	"github.com/dgraph-io/badger/v4"
+	"fmt"
+
+	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
+	inmemorystore "github.com/ark-network/ark/pkg/client-sdk/store/inmemory"
+	kvstore "github.com/ark-network/ark/pkg/client-sdk/store/kv"
+	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
 	InMemoryStore = "inmemory"
 	FileStore     = "file"
-	Badger        = "badger"
+	KVStore       = "kv"
 )
 
 type service struct {
-	configRepository  domain.ConfigRepository
-	appDataRepository domain.AppDataRepository
+	configStore storetypes.ConfigStore
+	vtxoStore   storetypes.VtxoStore
+	txStore     storetypes.TransactionStore
 }
 
 type Config struct {
 	ConfigStoreType  string
 	AppDataStoreType string
 
-	BaseDir      string
-	BadgerLogger badger.Logger
+	BaseDir string
 }
 
-func NewService(storeConfig Config) (domain.SdkRepository, error) {
+func NewStore(storeConfig Config) (storetypes.Store, error) {
 	var (
-		configRepository      domain.ConfigRepository
-		appDataRepository     domain.AppDataRepository
-		transactionRepository domain.TransactionRepository
-		vtxoRepository        domain.VtxoRepository
-		err                   error
+		configStore storetypes.ConfigStore
+		vtxoStore   storetypes.VtxoStore
+		txStore     storetypes.TransactionStore
+		err         error
 
-		dir          = storeConfig.BaseDir
-		badgerLogger = storeConfig.BadgerLogger
+		dir = storeConfig.BaseDir
 	)
 
 	switch storeConfig.ConfigStoreType {
 	case InMemoryStore:
-		configRepository, err = inmemorystore.NewConfig()
-		if err != nil {
-			return nil, err
-		}
+		configStore, err = inmemorystore.NewConfigStore()
 	case FileStore:
-		configRepository, err = filestore.NewConfig(dir)
-		if err != nil {
-			return nil, err
-		}
+		configStore, err = filestore.NewConfigStore(dir)
+	default:
+		err = fmt.Errorf("unknown config store type")
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	switch storeConfig.AppDataStoreType {
-	case Badger:
-		transactionRepository, err = badgerstore.NewTransactionRepository(
-			dir,
-			badgerLogger,
-		)
+	case KVStore:
+		logger := log.New()
+		vtxoStore, err = kvstore.NewVtxoStore(dir, logger)
 		if err != nil {
 			return nil, err
 		}
-
-		vtxoRepository, err = badgerstore.NewVtxoRepository(
-			dir,
-			badgerLogger,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		appDataRepository = badgerstore.NewAppDataRepository(
-			transactionRepository,
-			vtxoRepository,
-		)
-
+		txStore, err = kvstore.NewTransactionStore(dir, logger)
+	default:
+		err = fmt.Errorf("unknown app data store type")
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	return &service{
-		configRepository:  configRepository,
-		appDataRepository: appDataRepository,
-	}, nil
+	return &service{configStore, vtxoStore, txStore}, nil
 }
 
-func (s *service) AppDataRepository() domain.AppDataRepository {
-	return s.appDataRepository
+func (s *service) ConfigStore() storetypes.ConfigStore {
+	return s.configStore
 }
 
-func (s *service) ConfigRepository() domain.ConfigRepository {
-	return s.configRepository
+func (s *service) VtxoStore() storetypes.VtxoStore {
+	return s.vtxoStore
+}
+
+func (s *service) TransactionStore() storetypes.TransactionStore {
+	return s.txStore
+}
+
+func (s *service) Close() {
+	s.configStore.Close()
+	s.vtxoStore.Close()
+	s.txStore.Close()
 }

@@ -1,4 +1,4 @@
-package domain
+package storetypes
 
 import (
 	"fmt"
@@ -25,9 +25,17 @@ type ConfigData struct {
 	ListenTransactionStream    bool
 }
 
+type VtxoKey struct {
+	Txid string
+	VOut uint32
+}
+
+func (v VtxoKey) String() string {
+	return fmt.Sprintf("%s:%s", v.Txid, strconv.Itoa(int(v.VOut)))
+}
+
 type Vtxo struct {
-	Txid                    string
-	VOut                    uint32
+	VtxoKey
 	Amount                  uint64
 	RoundTxid               string
 	ExpiresAt               *time.Time
@@ -38,10 +46,6 @@ type Vtxo struct {
 	Spent                   bool
 }
 
-func (v Vtxo) Key() string {
-	return fmt.Sprintf("%s:%s", v.Txid, strconv.Itoa(int(v.VOut)))
-}
-
 const (
 	TxSent     TxType = "sent"
 	TxReceived TxType = "received"
@@ -49,20 +53,22 @@ const (
 
 type TxType string
 
-type Transaction struct {
-	BoardingTxid    string
-	BoardingVOut    uint32
-	RoundTxid       string
-	RedeemTxid      string
-	Amount          uint64
-	Type            TxType
-	IsPending       bool
-	IsPendingChange bool
-	CreatedAt       time.Time
+type TransactionKey struct {
+	BoardingTxid string
+	RoundTxid    string
+	RedeemTxid   string
 }
 
-func (t Transaction) Key() string {
-	return fmt.Sprintf("%s:%s:%s", t.BoardingTxid, t.RoundTxid, t.RedeemTxid)
+func (t TransactionKey) String() string {
+	return fmt.Sprintf("%s%s%s", t.BoardingTxid, t.RoundTxid, t.RedeemTxid)
+}
+
+type Transaction struct {
+	TransactionKey
+	Amount    uint64
+	Type      TxType
+	IsPending bool
+	CreatedAt time.Time
 }
 
 func (t Transaction) IsRound() bool {
@@ -73,19 +79,16 @@ func (t Transaction) IsBoarding() bool {
 	return t.BoardingTxid != ""
 }
 
-func (t Transaction) IsRedeem() bool {
+func (t Transaction) IsOOR() bool {
 	return t.RedeemTxid != ""
 }
 
 const (
-	BoardingPending    EventType = "boarding_pending"
-	BoardingClaimed    EventType = "boarding_claimed"
-	ArkSent            EventType = "ark_sent"
-	ArkReceived        EventType = "ark_received"
-	ArkSentPending     EventType = "ark_sent_pending"
-	ArkSentClaimed     EventType = "ark_sent_claimed"
-	ArkReceivedPending EventType = "ark_received_pending"
-	ArkReceivedClaimed EventType = "ark_received_claimed"
+	BoardingPending EventType = "BOARDING_PENDING"
+	BoardingSettled EventType = "BOARDING_SETTLED"
+	OORSent         EventType = "OOR_SENT"
+	OORReceived     EventType = "OOR_RECEIVED"
+	OORSettled      EventType = "OOR_SETTLED"
 )
 
 type EventType string

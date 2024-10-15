@@ -17,7 +17,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/explorer"
 	"github.com/ark-network/ark/pkg/client-sdk/internal/utils"
 	"github.com/ark-network/ark/pkg/client-sdk/redemption"
-	"github.com/ark-network/ark/pkg/client-sdk/store/domain"
+	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
 	"github.com/ark-network/ark/pkg/client-sdk/wallet"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -56,8 +56,8 @@ type covenantArkClient struct {
 	*arkClient
 }
 
-func NewCovenantClient(sdkRepository domain.SdkRepository) (ArkClient, error) {
-	cfgData, err := sdkRepository.ConfigRepository().GetData(context.Background())
+func NewCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
+	cfgData, err := sdkStore.ConfigStore().GetData(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -68,17 +68,17 @@ func NewCovenantClient(sdkRepository domain.SdkRepository) (ArkClient, error) {
 
 	return &covenantArkClient{
 		&arkClient{
-			sdkRepository: sdkRepository,
+			sdkStore: sdkStore,
 		},
 	}, nil
 }
 
-func LoadCovenantClient(sdkRepository domain.SdkRepository) (ArkClient, error) {
-	if sdkRepository == nil {
+func LoadCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
+	if sdkStore == nil {
 		return nil, fmt.Errorf("missin sdk repository")
 	}
 
-	cfgData, err := sdkRepository.ConfigRepository().GetData(context.Background())
+	cfgData, err := sdkStore.ConfigStore().GetData(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func LoadCovenantClient(sdkRepository domain.SdkRepository) (ArkClient, error) {
 	}
 
 	walletSvc, err := getWallet(
-		sdkRepository.ConfigRepository(),
+		sdkStore.ConfigStore(),
 		cfgData,
 		supportedWallets,
 	)
@@ -110,11 +110,11 @@ func LoadCovenantClient(sdkRepository domain.SdkRepository) (ArkClient, error) {
 
 	covenantClient := covenantArkClient{
 		&arkClient{
-			ConfigData:    cfgData,
-			wallet:        walletSvc,
-			sdkRepository: sdkRepository,
-			explorer:      explorerSvc,
-			client:        clientSvc,
+			ConfigData: cfgData,
+			wallet:     walletSvc,
+			sdkStore:   sdkStore,
+			explorer:   explorerSvc,
+			client:     clientSvc,
 		},
 	}
 
@@ -129,9 +129,9 @@ func LoadCovenantClient(sdkRepository domain.SdkRepository) (ArkClient, error) {
 }
 
 func LoadCovenantClientWithWallet(
-	sdkRepository domain.SdkRepository, walletSvc wallet.WalletService,
+	sdkStore storetypes.Store, walletSvc wallet.WalletService,
 ) (ArkClient, error) {
-	if sdkRepository == nil {
+	if sdkStore == nil {
 		return nil, fmt.Errorf("missin sdk repository")
 	}
 
@@ -139,7 +139,7 @@ func LoadCovenantClientWithWallet(
 		return nil, fmt.Errorf("missin wallet service")
 	}
 
-	cfgData, err := sdkRepository.ConfigRepository().GetData(context.Background())
+	cfgData, err := sdkStore.ConfigStore().GetData(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -161,11 +161,11 @@ func LoadCovenantClientWithWallet(
 
 	covenantClient := covenantArkClient{
 		&arkClient{
-			ConfigData:    cfgData,
-			wallet:        walletSvc,
-			sdkRepository: sdkRepository,
-			explorer:      explorerSvc,
-			client:        clientSvc,
+			ConfigData: cfgData,
+			wallet:     walletSvc,
+			sdkStore:   sdkStore,
+			explorer:   explorerSvc,
+			client:     clientSvc,
 		},
 	}
 
@@ -664,9 +664,9 @@ func (a *covenantArkClient) Claim(ctx context.Context) (string, error) {
 
 func (a *covenantArkClient) GetTransactionHistory(
 	ctx context.Context,
-) ([]domain.Transaction, error) {
+) ([]storetypes.Transaction, error) {
 	if a.ConfigData.ListenTransactionStream {
-		return a.sdkRepository.AppDataRepository().TransactionRepository().GetAll(ctx)
+		return a.sdkStore.TransactionStore().GetAllTransactions(ctx)
 	}
 
 	spendableVtxos, spentVtxos, err := a.ListVtxos(ctx)
@@ -674,7 +674,7 @@ func (a *covenantArkClient) GetTransactionHistory(
 		return nil, err
 	}
 
-	config, err := a.sdkRepository.ConfigRepository().GetData(ctx)
+	config, err := a.sdkStore.ConfigStore().GetData(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1787,7 +1787,7 @@ func (a *covenantArkClient) offchainAddressToDefaultVtxoDescriptor(addr string) 
 
 func (a *covenantArkClient) getBoardingTxs(
 	ctx context.Context,
-) (transactions []domain.Transaction) {
+) (transactions []storetypes.Transaction) {
 	utxos, err := a.getClaimableBoardingUtxos(ctx)
 	if err != nil {
 		return nil
@@ -1809,23 +1809,24 @@ func (a *covenantArkClient) getBoardingTxs(
 			pending = true
 		}
 
-		transactions = append(transactions, domain.Transaction{
-			BoardingTxid: u.Txid,
-			Amount:       u.Amount,
-			Type:         domain.TxReceived,
-			CreatedAt:    u.CreatedAt,
-			IsPending:    pending,
-			BoardingVOut: u.Vout,
+		transactions = append(transactions, storetypes.Transaction{
+			TransactionKey: storetypes.TransactionKey{
+				BoardingTxid: u.Txid,
+			},
+			Amount:    u.Amount,
+			Type:      storetypes.TxReceived,
+			CreatedAt: u.CreatedAt,
+			IsPending: pending,
 		})
 	}
 	return
 }
 
 func vtxosToTxsCovenant(
-	roundLifetime int64, spendable, spent []client.Vtxo, boardingTxs []domain.Transaction,
-) ([]domain.Transaction, error) {
-	transactions := make([]domain.Transaction, 0)
-	unconfirmedBoardingTxs := make([]domain.Transaction, 0)
+	roundLifetime int64, spendable, spent []client.Vtxo, boardingTxs []storetypes.Transaction,
+) ([]storetypes.Transaction, error) {
+	transactions := make([]storetypes.Transaction, 0)
+	unconfirmedBoardingTxs := make([]storetypes.Transaction, 0)
 	for _, tx := range boardingTxs {
 		emptyTime := time.Time{}
 		if tx.CreatedAt == emptyTime {
@@ -1850,9 +1851,9 @@ func vtxosToTxsCovenant(
 			}
 		}
 		// what kind of tx was this? send or receive?
-		txType := domain.TxReceived
+		txType := storetypes.TxReceived
 		if amount < 0 {
-			txType = domain.TxSent
+			txType = storetypes.TxSent
 		}
 		// get redeem txid
 		redeemTxid := ""
@@ -1864,12 +1865,14 @@ func vtxosToTxsCovenant(
 			redeemTxid = txid
 		}
 		// add transaction
-		transactions = append(transactions, domain.Transaction{
-			RoundTxid:  v.RoundTxid,
-			RedeemTxid: redeemTxid,
-			Amount:     uint64(math.Abs(float64(amount))),
-			Type:       txType,
-			CreatedAt:  getCreatedAtFromExpiry(roundLifetime, *v.ExpiresAt),
+		transactions = append(transactions, storetypes.Transaction{
+			TransactionKey: storetypes.TransactionKey{
+				RoundTxid:  v.RoundTxid,
+				RedeemTxid: redeemTxid,
+			},
+			Amount:    uint64(math.Abs(float64(amount))),
+			Type:      txType,
+			CreatedAt: getCreatedAtFromExpiry(roundLifetime, *v.ExpiresAt),
 		})
 	}
 

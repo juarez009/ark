@@ -8,9 +8,9 @@ import (
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
-	"github.com/ark-network/ark/pkg/client-sdk/store/domain"
 	filedb "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	inmemorydb "github.com/ark-network/ark/pkg/client-sdk/store/inmemory"
+	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
 	"github.com/ark-network/ark/pkg/client-sdk/wallet"
 	"github.com/btcsuite/btcd/btcec/v2"
 	log "github.com/sirupsen/logrus"
@@ -20,7 +20,7 @@ import (
 func TestStore(t *testing.T) {
 	key, _ := btcec.NewPrivateKey()
 	ctx := context.Background()
-	testStoreData := domain.ConfigData{
+	testStoreData := storetypes.ConfigData{
 		AspUrl:                     "localhost:7070",
 		AspPubkey:                  key.PubKey(),
 		WalletType:                 wallet.SingleKeyWallet,
@@ -50,13 +50,13 @@ func TestStore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var storeSvc domain.ConfigRepository
+			var storeSvc storetypes.ConfigStore
 			var err error
 			switch tt.name {
 			case store.InMemoryStore:
-				storeSvc, err = inmemorydb.NewConfig()
+				storeSvc, err = inmemorydb.NewConfigStore()
 			case store.FileStore:
-				storeSvc, err = filedb.NewConfig(t.TempDir())
+				storeSvc, err = filedb.NewConfigStore(t.TempDir())
 			}
 			require.NoError(t, err)
 			require.NotNil(t, storeSvc)
@@ -101,45 +101,48 @@ func TestNewService(t *testing.T) {
 
 	dbConfig := store.Config{
 		ConfigStoreType:  store.FileStore,
-		AppDataStoreType: store.Badger,
+		AppDataStoreType: store.KVStore,
 		BaseDir:          testDir,
 	}
 
-	service, err := store.NewService(dbConfig)
+	service, err := store.NewStore(dbConfig)
 	require.NoError(t, err)
 	require.NotNil(t, service)
 
 	go func() {
-		eventCh := service.AppDataRepository().TransactionRepository().GetEventChannel()
+		eventCh := service.TransactionStore().GetEventChannel()
 		for tx := range eventCh {
 			log.Infof("Tx inserted: %d %v", tx.Tx.Amount, tx.Tx.Type)
 		}
 	}()
 
-	txRepo := service.AppDataRepository().TransactionRepository()
+	txRepo := service.TransactionStore()
 	require.NotNil(t, txRepo)
 
-	testTxs := []domain.Transaction{
+	testTxs := []storetypes.Transaction{
 		{
-			RoundTxid: "tx1",
+			TransactionKey: storetypes.TransactionKey{
+				RoundTxid: "tx1",
+			},
 			Amount:    1000,
-			Type:      domain.TxSent,
+			Type:      storetypes.TxSent,
 			CreatedAt: time.Now(),
 		},
 		{
-			RoundTxid: "tx2",
+			TransactionKey: storetypes.TransactionKey{
+				RoundTxid: "tx2",
+			},
 			Amount:    2000,
-			Type:      domain.TxReceived,
+			Type:      storetypes.TxReceived,
 			CreatedAt: time.Now(),
 		},
 	}
-	err = txRepo.InsertTransactions(ctx, testTxs)
+	err = txRepo.AddTransactions(ctx, testTxs)
 	require.NoError(t, err)
 
-	retrievedTxs, err := txRepo.GetAll(ctx)
+	retrievedTxs, err := txRepo.GetAllTransactions(ctx)
 	require.NoError(t, err)
 	require.Len(t, retrievedTxs, 2)
 
-	err = service.AppDataRepository().Stop()
-	require.NoError(t, err)
+	service.Close()
 }

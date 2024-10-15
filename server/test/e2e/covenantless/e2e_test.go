@@ -480,9 +480,9 @@ func setupAspWallet() error {
 }
 
 func setupArkSDK(t *testing.T) (arksdk.ArkClient, client.ASPClient) {
-	appDataStore, err := store.NewService(store.Config{
+	appDataStore, err := store.NewStore(store.Config{
 		ConfigStoreType:  store.FileStore,
-		AppDataStoreType: store.Badger,
+		AppDataStoreType: store.KVStore,
 		BaseDir:          t.TempDir(),
 	})
 	require.NoError(t, err)
