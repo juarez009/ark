@@ -34,7 +34,7 @@ typedef struct {
 #define ARK_SDK_ERROR_HISTORY_FAILED     -16
 #define ARK_SDK_ERROR_CONFIG_FAILED      -17
 
-ArkClientHandle ArkClientNew(char** errorMsg);
+ArkClientHandle ArkClientNew(const char* datadir, char** errorMsg);
 int DestroyArkClient(ArkClientHandle handle);
 int ArkClientInit(ArkClientHandle handle, ContextHandle ctxHandle, char* aspUrl, char* password, char** errorMsg);
 int ArkClientUnlock(ArkClientHandle handle, ContextHandle ctxHandle, char* password, char** errorMsg);

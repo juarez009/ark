@@ -37,7 +37,7 @@ import (
 	"unsafe"
 
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	inmemorystore "github.com/ark-network/ark/pkg/client-sdk/store/inmemory"
+	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 )
 
 var (
@@ -48,6 +48,8 @@ var (
 	contextMap      = make(map[C.uintptr_t]context.Context)
 	contextMapMutex sync.Mutex
 	contextHandleID uintptr
+
+	datadir = "./data"
 )
 
 func generateClientHandle() C.uintptr_t {
@@ -85,13 +87,25 @@ func getContext(handle C.uintptr_t) (context.Context, int, string) {
 }
 
 //export ArkClientNew
-func ArkClientNew(errorMsg **C.char) C.uintptr_t {
-	storeSvc, err := inmemorystore.NewConfigStore()
+func ArkClientNew(datadir *C.char, errorMsg **C.char) C.uintptr_t {
+	storeSvc, err := filestore.NewConfigStore(C.GoString(datadir))
 	if err != nil {
 		*errorMsg = C.CString(err.Error())
 		return 0
 	}
-	client, err := arksdk.NewCovenantlessClient(storeSvc)
+
+	data, err := storeSvc.GetData(context.Background())
+	if err != nil {
+		*errorMsg = C.CString(err.Error())
+		return 0
+	}
+
+	var client arksdk.ArkClient
+	if data != nil {
+		client, err = arksdk.LoadCovenantlessClient(storeSvc)
+	} else {
+		client, err = arksdk.NewCovenantlessClient(storeSvc)
+	}
 	if err != nil {
 		*errorMsg = C.CString(err.Error())
 		return 0

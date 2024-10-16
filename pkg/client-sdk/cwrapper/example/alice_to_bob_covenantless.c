@@ -2,14 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "ark_sdk.h"
+#include "arksdk.h"
 
 #define ASP_URL "localhost:7070"
 #define PASSWORD "password"
 
-uintptr_t setupArkClient() {
+uintptr_t setupArkClient(const char*datadir) {
     char* errorMsg = NULL;
-    uintptr_t client = ArkClientNew(&errorMsg);
+    uintptr_t client = ArkClientNew(datadir, &errorMsg);
     if (client == 0) {
         printf("Failed to create Ark client: %s\n", errorMsg);
         FreeString(errorMsg);
@@ -66,7 +66,7 @@ int main() {
     uintptr_t ctx = CreateContext();
 
     printf("Alice is setting up her ark wallet...\n");
-    uintptr_t aliceClient = setupArkClient();
+    uintptr_t aliceClient = setupArkClient("./data/alice");
 
     printf("Alice is acquiring onchain funds...\n");
     char *aliceOffchainAddr = NULL, *aliceBoardingAddr = NULL;
@@ -100,7 +100,7 @@ int main() {
 
     // Bob sets up his Ark wallet
     printf("\nBob is setting up his ark wallet...\n");
-    uintptr_t bobClient = setupArkClient();
+    uintptr_t bobClient = setupArkClient("./data/bob");
 
     char *bobOffchainAddr = NULL, *bobBoardingAddr = NULL;
     if (ArkClientReceive(bobClient, ctx, &bobOffchainAddr, &bobBoardingAddr, &errorMsg) != ARK_SDK_SUCCESS) {

@@ -1,18 +1,18 @@
-.PHONY: all clean
+.PHONY: build build-sdk build-example run-example clean
 
 CC=gcc
 CFLAGS=-I.
 LDFLAGS=-L. -lark
 
-all: libark.so example/alice_to_bob_covenantless
+build: build-sdk build-example
 
-libark.so: ark_sdk_covenantless_c.go
+build-sdk: main.go
 	./build.sh
 
-example/alice_to_bob_covenantless: example/alice_to_bob_covenantless.c libark.so ark_sdk.h
-	$(CC) -o $@ example/alice_to_bob_covenantless.c $(CFLAGS) $(LDFLAGS)
+build-example: example/alice_to_bob_covenantless.c libark.so arksdk.h
+	$(CC) -o example/alice_to_bob_covenantless example/alice_to_bob_covenantless.c $(CFLAGS) $(LDFLAGS)
 
-runcovenantless: example/alice_to_bob_covenantless
+run-example:
 	./example/alice_to_bob_covenantless
 
 clean:
