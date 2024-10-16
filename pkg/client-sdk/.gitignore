@@ -1,1 +1,10 @@
-build
+# WASM build
+*.wasm
+# WASM dep
+wasm_exec.js
+
+# C wrappers
+**/libark.so
+**/libark.h
+# C example binary
+**/alice_to_bob_covenantless
