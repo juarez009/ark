@@ -38,6 +38,7 @@ func NewClient(aspUrl string) (client.ASPClient, error) {
 	if err != nil {
 		return nil, err
 	}
+	// TODO: use twice the round interval.
 	reqTimeout := 15 * time.Second
 	treeCache := utils.NewCache[tree.CongestionTree]()
 
@@ -223,25 +224,19 @@ func (a *restClient) SubmitSignedForfeitTxs(
 func (a *restClient) GetEventStream(
 	ctx context.Context, paymentID string,
 ) (<-chan client.RoundEventChannel, func(), error) {
+	ctx, cancel := context.WithTimeout(ctx, a.requestTimeout)
 	eventsCh := make(chan client.RoundEventChannel)
-	stopCh := make(chan struct{})
 
-	go func(payID string) {
+	go func(payID string, eventsCh chan client.RoundEventChannel) {
+		ticker := time.NewTicker(1 * time.Second)
 		defer close(eventsCh)
-		defer close(stopCh)
-
-		timeout := time.After(a.requestTimeout)
+		defer ticker.Stop()
 
 		for {
 			select {
-			case <-stopCh:
+			case <-ctx.Done():
 				return
-			case <-timeout:
-				eventsCh <- client.RoundEventChannel{
-					Err: fmt.Errorf("timeout reached"),
-				}
-				return
-			default:
+			case <-ticker.C:
 				event, err := a.Ping(ctx, payID)
 				if err != nil {
 					eventsCh <- client.RoundEventChannel{
@@ -255,17 +250,11 @@ func (a *restClient) GetEventStream(
 						Event: event,
 					}
 				}
-
-				time.Sleep(1 * time.Second)
 			}
 		}
-	}(paymentID)
+	}(paymentID, eventsCh)
 
-	close := func() {
-		stopCh <- struct{}{}
-	}
-
-	return eventsCh, close, nil
+	return eventsCh, cancel, nil
 }
 
 func (a *restClient) Ping(
@@ -349,7 +338,7 @@ func (a *restClient) Ping(
 
 func (a *restClient) CreatePayment(
 	ctx context.Context, inputs []client.Input, outputs []client.Output,
-) (string, []string, error) {
+) (string, error) {
 	ins := make([]*models.V1Input, 0, len(inputs))
 	for _, i := range inputs {
 		ins = append(ins, &models.V1Input{
@@ -376,21 +365,19 @@ func (a *restClient) CreatePayment(
 		ark_service.NewArkServiceCreatePaymentParams().WithBody(&body),
 	)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
-	return resp.GetPayload().SignedRedeemTx, resp.GetPayload().UsignedUnconditionalForfeitTxs, nil
+	return resp.GetPayload().SignedRedeemTx, nil
 }
 
 func (a *restClient) CompletePayment(
-	ctx context.Context, signedRedeemTx string, signedUncondForfeitTxs []string,
+	ctx context.Context, signedRedeemTx string,
 ) error {
 	req := &arkv1.CompletePaymentRequest{
-		SignedRedeemTx:                signedRedeemTx,
-		SignedUnconditionalForfeitTxs: signedUncondForfeitTxs,
+		SignedRedeemTx: signedRedeemTx,
 	}
 	body := models.V1CompletePaymentRequest{
-		SignedRedeemTx:                req.GetSignedRedeemTx(),
-		SignedUnconditionalForfeitTxs: req.GetSignedUnconditionalForfeitTxs(),
+		SignedRedeemTx: req.GetSignedRedeemTx(),
 	}
 	_, err := a.svc.ArkServiceCompletePayment(
 		ark_service.NewArkServiceCompletePaymentParams().WithBody(&body),
@@ -503,26 +490,18 @@ func (a *restClient) ListVtxos(
 			return nil, nil, err
 		}
 
-		var redeemTx string
-		var uncondForfeitTxs []string
-		if v.PendingData != nil {
-			redeemTx = v.PendingData.RedeemTx
-			uncondForfeitTxs = v.PendingData.UnconditionalForfeitTxs
-		}
-
 		spendableVtxos = append(spendableVtxos, client.Vtxo{
 			Outpoint: client.Outpoint{
 				Txid: v.Outpoint.Txid,
 				VOut: uint32(v.Outpoint.Vout),
 			},
-			Amount:                  uint64(amount),
-			RoundTxid:               v.RoundTxid,
-			ExpiresAt:               expiresAt,
-			Pending:                 v.Pending,
-			RedeemTx:                redeemTx,
-			UnconditionalForfeitTxs: uncondForfeitTxs,
-			SpentBy:                 v.SpentBy,
-			Descriptor:              v.Descriptor,
+			Amount:     uint64(amount),
+			RoundTxid:  v.RoundTxid,
+			ExpiresAt:  expiresAt,
+			Pending:    v.Pending,
+			RedeemTx:   v.RedeemTx,
+			SpentBy:    v.SpentBy,
+			Descriptor: v.Descriptor,
 		})
 	}
 
