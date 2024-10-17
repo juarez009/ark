@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/ark-network/ark/pkg/client-sdk/client"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 )
 
 type ArkClient interface {
-	GetConfigData(ctx context.Context) (*storetypes.ConfigData, error)
+	GetConfigData(ctx context.Context) (*types.Config, error)
 	Init(ctx context.Context, args InitArgs) error
 	InitWithWallet(ctx context.Context, args InitWithWalletArgs) error
 	IsLocked(ctx context.Context) bool
@@ -28,8 +28,8 @@ type ArkClient interface {
 	Claim(ctx context.Context) (string, error)
 	ListVtxos(ctx context.Context) (spendable, spent []client.Vtxo, err error)
 	Dump(ctx context.Context) (seed string, err error)
-	GetTransactionHistory(ctx context.Context) ([]storetypes.Transaction, error)
-	GetTransactionEventChannel() chan storetypes.TransactionEvent
+	GetTransactionHistory(ctx context.Context) ([]types.Transaction, error)
+	GetTransactionEventChannel() chan types.TransactionEvent
 	Stop() error
 }
 

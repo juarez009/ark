@@ -1,4 +1,4 @@
-package badgerstore
+package kvstore
 
 import (
 	"time"

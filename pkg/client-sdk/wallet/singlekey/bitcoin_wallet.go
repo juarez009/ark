@@ -11,7 +11,7 @@ import (
 	"github.com/ark-network/ark/common/bitcointree"
 	"github.com/ark-network/ark/pkg/client-sdk/explorer"
 	"github.com/ark-network/ark/pkg/client-sdk/internal/utils"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/ark-network/ark/pkg/client-sdk/wallet"
 	walletstore "github.com/ark-network/ark/pkg/client-sdk/wallet/singlekey/store"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -26,7 +26,7 @@ type bitcoinWallet struct {
 }
 
 func NewBitcoinWallet(
-	configRepo storetypes.ConfigStore, walletStore walletstore.WalletStore,
+	configStore types.ConfigStore, walletStore walletstore.WalletStore,
 ) (wallet.WalletService, error) {
 	walletData, err := walletStore.GetWallet()
 	if err != nil {
@@ -34,7 +34,7 @@ func NewBitcoinWallet(
 	}
 	return &bitcoinWallet{
 		&singlekeyWallet{
-			configStore: configRepo,
+			configStore: configStore,
 			walletStore: walletStore,
 			walletData:  walletData,
 		},

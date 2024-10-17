@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 )
 
 const (
@@ -20,7 +20,7 @@ type configStore struct {
 	filePath string
 }
 
-func NewConfigStore(baseDir string) (storetypes.ConfigStore, error) {
+func NewConfigStore(baseDir string) (types.ConfigStore, error) {
 	if len(baseDir) <= 0 {
 		return nil, fmt.Errorf("missing base directory")
 	}
@@ -50,7 +50,7 @@ func (s *configStore) GetDatadir() string {
 	return filepath.Dir(s.filePath)
 }
 
-func (s *configStore) AddData(ctx context.Context, data storetypes.ConfigData) error {
+func (s *configStore) AddData(ctx context.Context, data types.Config) error {
 	sd := &storeData{
 		AspUrl:                     data.AspUrl,
 		AspPubkey:                  hex.EncodeToString(data.AspPubkey.SerializeCompressed()),
@@ -64,7 +64,7 @@ func (s *configStore) AddData(ctx context.Context, data storetypes.ConfigData) e
 		BoardingDescriptorTemplate: data.BoardingDescriptorTemplate,
 		ExplorerURL:                data.ExplorerURL,
 		ForfeitAddress:             data.ForfeitAddress,
-		ListenTransactionStream:    strconv.FormatBool(data.ListenTransactionStream),
+		WithTransactionFeed:        strconv.FormatBool(data.WithTransactionFeed),
 	}
 
 	if err := s.write(sd); err != nil {
@@ -73,7 +73,7 @@ func (s *configStore) AddData(ctx context.Context, data storetypes.ConfigData) e
 	return nil
 }
 
-func (s *configStore) GetData(_ context.Context) (*storetypes.ConfigData, error) {
+func (s *configStore) GetData(_ context.Context) (*types.Config, error) {
 	sd, err := s.open()
 	if err != nil {
 		return nil, err

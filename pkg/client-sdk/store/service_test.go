@@ -10,7 +10,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	filedb "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	inmemorydb "github.com/ark-network/ark/pkg/client-sdk/store/inmemory"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/ark-network/ark/pkg/client-sdk/wallet"
 	"github.com/btcsuite/btcd/btcec/v2"
 	log "github.com/sirupsen/logrus"
@@ -20,7 +20,7 @@ import (
 func TestStore(t *testing.T) {
 	key, _ := btcec.NewPrivateKey()
 	ctx := context.Background()
-	testStoreData := storetypes.ConfigData{
+	testStoreData := sdktypes.Config{
 		AspUrl:                     "localhost:7070",
 		AspPubkey:                  key.PubKey(),
 		WalletType:                 wallet.SingleKeyWallet,
@@ -38,10 +38,10 @@ func TestStore(t *testing.T) {
 		name string
 	}{
 		{
-			name: store.InMemoryStore,
+			name: sdktypes.InMemoryStore,
 		},
 		{
-			name: store.FileStore,
+			name: sdktypes.FileStore,
 		},
 	}
 
@@ -50,12 +50,12 @@ func TestStore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var storeSvc storetypes.ConfigStore
+			var storeSvc sdktypes.ConfigStore
 			var err error
 			switch tt.name {
-			case store.InMemoryStore:
+			case sdktypes.InMemoryStore:
 				storeSvc, err = inmemorydb.NewConfigStore()
-			case store.FileStore:
+			case sdktypes.FileStore:
 				storeSvc, err = filedb.NewConfigStore(t.TempDir())
 			}
 			require.NoError(t, err)
@@ -100,8 +100,8 @@ func TestNewService(t *testing.T) {
 	testDir := t.TempDir()
 
 	dbConfig := store.Config{
-		ConfigStoreType:  store.FileStore,
-		AppDataStoreType: store.KVStore,
+		ConfigStoreType:  sdktypes.FileStore,
+		AppDataStoreType: sdktypes.KVStore,
 		BaseDir:          testDir,
 	}
 
@@ -116,31 +116,31 @@ func TestNewService(t *testing.T) {
 		}
 	}()
 
-	txRepo := service.TransactionStore()
-	require.NotNil(t, txRepo)
+	txStore := service.TransactionStore()
+	require.NotNil(t, txStore)
 
-	testTxs := []storetypes.Transaction{
+	testTxs := []sdktypes.Transaction{
 		{
-			TransactionKey: storetypes.TransactionKey{
+			TransactionKey: sdktypes.TransactionKey{
 				RoundTxid: "tx1",
 			},
 			Amount:    1000,
-			Type:      storetypes.TxSent,
+			Type:      sdktypes.TxSent,
 			CreatedAt: time.Now(),
 		},
 		{
-			TransactionKey: storetypes.TransactionKey{
+			TransactionKey: sdktypes.TransactionKey{
 				RoundTxid: "tx2",
 			},
 			Amount:    2000,
-			Type:      storetypes.TxReceived,
+			Type:      sdktypes.TxReceived,
 			CreatedAt: time.Now(),
 		},
 	}
-	err = txRepo.AddTransactions(ctx, testTxs)
+	err = txStore.AddTransactions(ctx, testTxs)
 	require.NoError(t, err)
 
-	retrievedTxs, err := txRepo.GetAllTransactions(ctx)
+	retrievedTxs, err := txStore.GetAllTransactions(ctx)
 	require.NoError(t, err)
 	require.Len(t, retrievedTxs, 2)
 

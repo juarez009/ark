@@ -1,4 +1,4 @@
-package storetypes
+package types
 
 import "context"
 
@@ -12,8 +12,8 @@ type Store interface {
 type ConfigStore interface {
 	GetType() string
 	GetDatadir() string
-	AddData(ctx context.Context, data ConfigData) error
-	GetData(ctx context.Context) (*ConfigData, error)
+	AddData(ctx context.Context, data Config) error
+	GetData(ctx context.Context) (*Config, error)
 	CleanData(ctx context.Context) error
 	Close()
 }
@@ -23,7 +23,6 @@ type TransactionStore interface {
 	UpdateTransactions(ctx context.Context, txs []Transaction) error
 	GetAllTransactions(ctx context.Context) ([]Transaction, error)
 	GetEventChannel() chan TransactionEvent
-	GetBoardingTxs(ctx context.Context) ([]Transaction, error)
 	Close()
 }
 

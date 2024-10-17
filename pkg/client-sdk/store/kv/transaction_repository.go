@@ -1,12 +1,13 @@
-package badgerstore
+package kvstore
 
 import (
 	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
+	"sync"
 
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/dgraph-io/badger/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/timshannon/badgerhold/v4"
@@ -16,95 +17,90 @@ const (
 	transactionStoreDir = "transactions"
 )
 
-type transactionRepository struct {
+type txStore struct {
 	db      *badgerhold.Store
-	eventCh chan storetypes.TransactionEvent
+	lock    *sync.Mutex
+	eventCh chan types.TransactionEvent
 }
 
 func NewTransactionStore(
 	dir string, logger badger.Logger,
-) (storetypes.TransactionStore, error) {
+) (types.TransactionStore, error) {
 	badgerDb, err := createDB(filepath.Join(dir, transactionStoreDir), logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open round events store: %s", err)
 	}
-	return &transactionRepository{
+	return &txStore{
 		db:      badgerDb,
-		eventCh: make(chan storetypes.TransactionEvent),
+		lock:    &sync.Mutex{},
+		eventCh: make(chan types.TransactionEvent),
 	}, nil
 }
 
-func (t *transactionRepository) GetBoardingTxs(ctx context.Context) ([]storetypes.Transaction, error) {
-	var txs []storetypes.Transaction
-	query := badgerhold.Where("BoardingTxid").Ne("")
-	err := t.db.Find(&txs, query)
-	return txs, err
-}
-
-func (t *transactionRepository) AddTransactions(
-	ctx context.Context, txs []storetypes.Transaction,
+func (s *txStore) AddTransactions(
+	_ context.Context, txs []types.Transaction,
 ) error {
 	for _, tx := range txs {
-		if err := t.db.Insert(tx.TransactionKey.String(), &tx); err != nil {
+		if err := s.db.Insert(tx.TransactionKey.String(), &tx); err != nil {
 			return err
 		}
-		go func(tx storetypes.Transaction) {
-			var eventType storetypes.EventType
+		go func(tx types.Transaction) {
+			var eventType types.EventType
 
 			if tx.IsOOR() {
 				switch tx.Type {
-				case storetypes.TxSent:
-					eventType = storetypes.OORSent
-				case storetypes.TxReceived:
-					eventType = storetypes.OORReceived
+				case types.TxSent:
+					eventType = types.OORSent
+				case types.TxReceived:
+					eventType = types.OORReceived
 				}
 			}
 
 			if tx.IsBoarding() {
-				eventType = storetypes.BoardingPending
+				eventType = types.BoardingPending
 			}
 
-			t.eventCh <- storetypes.TransactionEvent{
+			s.sendEvent(types.TransactionEvent{
 				Tx:    tx,
 				Event: eventType,
-			}
+			})
 		}(tx)
 	}
 	return nil
 }
 
-func (t *transactionRepository) UpdateTransactions(
-	ctx context.Context, txs []storetypes.Transaction,
+func (s *txStore) UpdateTransactions(
+	_ context.Context, txs []types.Transaction,
 ) error {
 	for _, tx := range txs {
-		if err := t.db.Upsert(tx.TransactionKey.String(), &tx); err != nil {
+		if err := s.db.Upsert(tx.TransactionKey.String(), &tx); err != nil {
 			return err
 		}
-		go func(tx storetypes.Transaction) {
-			var event storetypes.EventType
+		go func(tx types.Transaction) {
+			var event types.EventType
 
 			if tx.IsOOR() {
-				event = storetypes.OORSettled
+				event = types.OORSettled
 			}
 
 			if tx.IsBoarding() {
-				event = storetypes.BoardingSettled
+				event = types.BoardingSettled
 			}
 
-			t.eventCh <- storetypes.TransactionEvent{
+			s.sendEvent(types.TransactionEvent{
 				Tx:    tx,
 				Event: event,
-			}
+			})
 		}(tx)
 	}
 	return nil
 }
 
-func (t *transactionRepository) GetAllTransactions(
-	ctx context.Context,
-) ([]storetypes.Transaction, error) {
-	var txs []storetypes.Transaction
-	err := t.db.Find(&txs, nil)
+func (s *txStore) GetAllTransactions(
+	_ context.Context,
+) ([]types.Transaction, error) {
+	var txs []types.Transaction
+	err := s.db.Find(&txs, nil)
 
 	sort.Slice(txs, func(i, j int) bool {
 		txi := txs[i]
@@ -118,13 +114,20 @@ func (t *transactionRepository) GetAllTransactions(
 	return txs, err
 }
 
-func (t *transactionRepository) GetEventChannel() chan storetypes.TransactionEvent {
-	return t.eventCh
+func (s *txStore) GetEventChannel() chan types.TransactionEvent {
+	return s.eventCh
 }
 
-func (t *transactionRepository) Close() {
-	if err := t.db.Close(); err != nil {
+func (s *txStore) Close() {
+	if err := s.db.Close(); err != nil {
 		log.Debugf("error on closing transactions db: %s", err)
 	}
-	close(t.eventCh)
+	close(s.eventCh)
+}
+
+func (s *txStore) sendEvent(event types.TransactionEvent) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.eventCh <- event
 }

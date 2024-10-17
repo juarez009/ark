@@ -1,4 +1,4 @@
-package storetypes
+package types
 
 import (
 	"fmt"
@@ -9,7 +9,13 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
-type ConfigData struct {
+const (
+	InMemoryStore = "inmemory"
+	FileStore     = "file"
+	KVStore       = "kv"
+)
+
+type Config struct {
 	AspUrl                     string
 	AspPubkey                  *secp256k1.PublicKey
 	WalletType                 string
@@ -22,7 +28,7 @@ type ConfigData struct {
 	BoardingDescriptorTemplate string
 	ExplorerURL                string
 	ForfeitAddress             string
-	ListenTransactionStream    bool
+	WithTransactionFeed        bool
 }
 
 type VtxoKey struct {
@@ -47,8 +53,8 @@ type Vtxo struct {
 }
 
 const (
-	TxSent     TxType = "sent"
-	TxReceived TxType = "received"
+	TxSent     TxType = "SENT"
+	TxReceived TxType = "RECEIVED"
 )
 
 type TxType string

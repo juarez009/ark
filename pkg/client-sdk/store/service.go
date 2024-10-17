@@ -6,20 +6,14 @@ import (
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	inmemorystore "github.com/ark-network/ark/pkg/client-sdk/store/inmemory"
 	kvstore "github.com/ark-network/ark/pkg/client-sdk/store/kv"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	InMemoryStore = "inmemory"
-	FileStore     = "file"
-	KVStore       = "kv"
-)
-
 type service struct {
-	configStore storetypes.ConfigStore
-	vtxoStore   storetypes.VtxoStore
-	txStore     storetypes.TransactionStore
+	configStore types.ConfigStore
+	vtxoStore   types.VtxoStore
+	txStore     types.TransactionStore
 }
 
 type Config struct {
@@ -29,20 +23,20 @@ type Config struct {
 	BaseDir string
 }
 
-func NewStore(storeConfig Config) (storetypes.Store, error) {
+func NewStore(storeConfig Config) (types.Store, error) {
 	var (
-		configStore storetypes.ConfigStore
-		vtxoStore   storetypes.VtxoStore
-		txStore     storetypes.TransactionStore
+		configStore types.ConfigStore
+		vtxoStore   types.VtxoStore
+		txStore     types.TransactionStore
 		err         error
 
 		dir = storeConfig.BaseDir
 	)
 
 	switch storeConfig.ConfigStoreType {
-	case InMemoryStore:
+	case types.InMemoryStore:
 		configStore, err = inmemorystore.NewConfigStore()
-	case FileStore:
+	case types.FileStore:
 		configStore, err = filestore.NewConfigStore(dir)
 	default:
 		err = fmt.Errorf("unknown config store type")
@@ -52,7 +46,7 @@ func NewStore(storeConfig Config) (storetypes.Store, error) {
 	}
 
 	switch storeConfig.AppDataStoreType {
-	case KVStore:
+	case types.KVStore:
 		logger := log.New()
 		vtxoStore, err = kvstore.NewVtxoStore(dir, logger)
 		if err != nil {
@@ -60,7 +54,7 @@ func NewStore(storeConfig Config) (storetypes.Store, error) {
 		}
 		txStore, err = kvstore.NewTransactionStore(dir, logger)
 	default:
-		err = fmt.Errorf("unknown app data store type")
+		err = fmt.Errorf("unknown appdata store type")
 	}
 	if err != nil {
 		return nil, err
@@ -69,15 +63,15 @@ func NewStore(storeConfig Config) (storetypes.Store, error) {
 	return &service{configStore, vtxoStore, txStore}, nil
 }
 
-func (s *service) ConfigStore() storetypes.ConfigStore {
+func (s *service) ConfigStore() types.ConfigStore {
 	return s.configStore
 }
 
-func (s *service) VtxoStore() storetypes.VtxoStore {
+func (s *service) VtxoStore() types.VtxoStore {
 	return s.vtxoStore
 }
 
-func (s *service) TransactionStore() storetypes.TransactionStore {
+func (s *service) TransactionStore() types.TransactionStore {
 	return s.txStore
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/explorer"
 	"github.com/ark-network/ark/pkg/client-sdk/redemption"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	utils "github.com/ark-network/ark/server/test/e2e"
 	"github.com/stretchr/testify/require"
 )
@@ -321,8 +322,8 @@ func setupAspWallet() error {
 
 func setupArkSDK(t *testing.T) (arksdk.ArkClient, client.ASPClient) {
 	appDataStore, err := store.NewStore(store.Config{
-		ConfigStoreType:  store.FileStore,
-		AppDataStoreType: store.KVStore,
+		ConfigStoreType:  types.FileStore,
+		AppDataStoreType: types.KVStore,
 		BaseDir:          t.TempDir(),
 	})
 	require.NoError(t, err)

@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"github.com/ark-network/ark/pkg/client-sdk/internal/utils"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/ark-network/ark/pkg/client-sdk/wallet"
 	walletstore "github.com/ark-network/ark/pkg/client-sdk/wallet/singlekey/store"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 type singlekeyWallet struct {
-	configStore storetypes.ConfigStore
+	configStore types.ConfigStore
 	walletStore walletstore.WalletStore
 	privateKey  *secp256k1.PrivateKey
 	walletData  *walletstore.WalletData

@@ -4,15 +4,15 @@ import (
 	"context"
 	"sync"
 
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 )
 
 type store struct {
-	data *storetypes.ConfigData
+	data *types.Config
 	lock *sync.RWMutex
 }
 
-func NewConfigStore() (storetypes.ConfigStore, error) {
+func NewConfigStore() (types.ConfigStore, error) {
 	lock := &sync.RWMutex{}
 	return &store{lock: lock}, nil
 }
@@ -28,7 +28,7 @@ func (s *store) GetDatadir() string {
 }
 
 func (s *store) AddData(
-	_ context.Context, data storetypes.ConfigData,
+	_ context.Context, data types.Config,
 ) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -37,7 +37,7 @@ func (s *store) AddData(
 	return nil
 }
 
-func (s *store) GetData(_ context.Context) (*storetypes.ConfigData, error) {
+func (s *store) GetData(_ context.Context) (*types.Config, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 

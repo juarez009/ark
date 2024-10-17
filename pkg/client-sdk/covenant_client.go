@@ -17,7 +17,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/explorer"
 	"github.com/ark-network/ark/pkg/client-sdk/internal/utils"
 	"github.com/ark-network/ark/pkg/client-sdk/redemption"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/ark-network/ark/pkg/client-sdk/wallet"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -56,7 +56,7 @@ type covenantArkClient struct {
 	*arkClient
 }
 
-func NewCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
+func NewCovenantClient(sdkStore types.Store) (ArkClient, error) {
 	cfgData, err := sdkStore.ConfigStore().GetData(context.Background())
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func NewCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
 	}, nil
 }
 
-func LoadCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
+func LoadCovenantClient(sdkStore types.Store) (ArkClient, error) {
 	if sdkStore == nil {
 		return nil, fmt.Errorf("missin sdk repository")
 	}
@@ -110,15 +110,15 @@ func LoadCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
 
 	covenantClient := covenantArkClient{
 		&arkClient{
-			ConfigData: cfgData,
-			wallet:     walletSvc,
-			store:      sdkStore,
-			explorer:   explorerSvc,
-			client:     clientSvc,
+			Config:   cfgData,
+			wallet:   walletSvc,
+			store:    sdkStore,
+			explorer: explorerSvc,
+			client:   clientSvc,
 		},
 	}
 
-	if cfgData.ListenTransactionStream {
+	if cfgData.WithTransactionFeed {
 		txStreamCtx, txStreamCtxCancel := context.WithCancel(context.Background())
 		covenantClient.txStreamCtxCancel = txStreamCtxCancel
 		go covenantClient.listenForTxStream(txStreamCtx)
@@ -129,7 +129,7 @@ func LoadCovenantClient(sdkStore storetypes.Store) (ArkClient, error) {
 }
 
 func LoadCovenantClientWithWallet(
-	sdkStore storetypes.Store, walletSvc wallet.WalletService,
+	sdkStore types.Store, walletSvc wallet.WalletService,
 ) (ArkClient, error) {
 	if sdkStore == nil {
 		return nil, fmt.Errorf("missin sdk repository")
@@ -161,15 +161,15 @@ func LoadCovenantClientWithWallet(
 
 	covenantClient := covenantArkClient{
 		&arkClient{
-			ConfigData: cfgData,
-			wallet:     walletSvc,
-			store:      sdkStore,
-			explorer:   explorerSvc,
-			client:     clientSvc,
+			Config:   cfgData,
+			wallet:   walletSvc,
+			store:    sdkStore,
+			explorer: explorerSvc,
+			client:   clientSvc,
 		},
 	}
 
-	if cfgData.ListenTransactionStream {
+	if cfgData.WithTransactionFeed {
 		txStreamCtx, txStreamCtxCancel := context.WithCancel(context.Background())
 		covenantClient.txStreamCtxCancel = txStreamCtxCancel
 		go covenantClient.listenForTxStream(txStreamCtx)
@@ -180,7 +180,7 @@ func LoadCovenantClientWithWallet(
 }
 
 func (a *covenantArkClient) Init(ctx context.Context, args InitArgs) error {
-	err := a.arkClient.Init(ctx, args)
+	err := a.arkClient.init(ctx, args)
 	if err != nil {
 		return err
 	}
@@ -196,12 +196,12 @@ func (a *covenantArkClient) Init(ctx context.Context, args InitArgs) error {
 }
 
 func (a *covenantArkClient) InitWithWallet(ctx context.Context, args InitWithWalletArgs) error {
-	err := a.arkClient.InitWithWallet(ctx, args)
+	err := a.arkClient.initWithWallet(ctx, args)
 	if err != nil {
 		return err
 	}
 
-	if args.ListenTransactionStream {
+	if a.WithTransactionFeed {
 		txStreamCtx, txStreamCtxCancel := context.WithCancel(context.Background())
 		a.txStreamCtxCancel = txStreamCtxCancel
 		go a.listenForTxStream(txStreamCtx)
@@ -664,8 +664,8 @@ func (a *covenantArkClient) Claim(ctx context.Context) (string, error) {
 
 func (a *covenantArkClient) GetTransactionHistory(
 	ctx context.Context,
-) ([]storetypes.Transaction, error) {
-	if a.ConfigData.ListenTransactionStream {
+) ([]types.Transaction, error) {
+	if a.Config.WithTransactionFeed {
 		return a.store.TransactionStore().GetAllTransactions(ctx)
 	}
 
@@ -1302,7 +1302,7 @@ func (a *covenantArkClient) validateCongestionTree(
 
 	if !utils.IsOnchainOnly(receivers) {
 		if err := tree.ValidateCongestionTree(
-			event.Tree, poolTx, a.ConfigData.AspPubkey, a.RoundLifetime,
+			event.Tree, poolTx, a.Config.AspPubkey, a.RoundLifetime,
 		); err != nil {
 			return err
 		}
@@ -1787,7 +1787,7 @@ func (a *covenantArkClient) offchainAddressToDefaultVtxoDescriptor(addr string) 
 
 func (a *covenantArkClient) getBoardingTxs(
 	ctx context.Context,
-) (transactions []storetypes.Transaction) {
+) (transactions []types.Transaction) {
 	utxos, err := a.getClaimableBoardingUtxos(ctx)
 	if err != nil {
 		return nil
@@ -1809,12 +1809,12 @@ func (a *covenantArkClient) getBoardingTxs(
 			pending = true
 		}
 
-		transactions = append(transactions, storetypes.Transaction{
-			TransactionKey: storetypes.TransactionKey{
+		transactions = append(transactions, types.Transaction{
+			TransactionKey: types.TransactionKey{
 				BoardingTxid: u.Txid,
 			},
 			Amount:    u.Amount,
-			Type:      storetypes.TxReceived,
+			Type:      types.TxReceived,
 			CreatedAt: u.CreatedAt,
 			IsPending: pending,
 		})
@@ -1823,10 +1823,10 @@ func (a *covenantArkClient) getBoardingTxs(
 }
 
 func vtxosToTxsCovenant(
-	roundLifetime int64, spendable, spent []client.Vtxo, boardingTxs []storetypes.Transaction,
-) ([]storetypes.Transaction, error) {
-	transactions := make([]storetypes.Transaction, 0)
-	unconfirmedBoardingTxs := make([]storetypes.Transaction, 0)
+	roundLifetime int64, spendable, spent []client.Vtxo, boardingTxs []types.Transaction,
+) ([]types.Transaction, error) {
+	transactions := make([]types.Transaction, 0)
+	unconfirmedBoardingTxs := make([]types.Transaction, 0)
 	for _, tx := range boardingTxs {
 		emptyTime := time.Time{}
 		if tx.CreatedAt == emptyTime {
@@ -1851,9 +1851,9 @@ func vtxosToTxsCovenant(
 			}
 		}
 		// what kind of tx was this? send or receive?
-		txType := storetypes.TxReceived
+		txType := types.TxReceived
 		if amount < 0 {
-			txType = storetypes.TxSent
+			txType = types.TxSent
 		}
 		// get redeem txid
 		redeemTxid := ""
@@ -1865,8 +1865,8 @@ func vtxosToTxsCovenant(
 			redeemTxid = txid
 		}
 		// add transaction
-		transactions = append(transactions, storetypes.Transaction{
-			TransactionKey: storetypes.TransactionKey{
+		transactions = append(transactions, types.Transaction{
+			TransactionKey: types.TransactionKey{
 				RoundTxid:  v.RoundTxid,
 				RedeemTxid: redeemTxid,
 			},

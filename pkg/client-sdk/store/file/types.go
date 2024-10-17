@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ark-network/ark/pkg/client-sdk/internal/utils"
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
@@ -22,7 +22,7 @@ type storeData struct {
 	BoardingDescriptorTemplate string `json:"boarding_descriptor_template"`
 	ExplorerURL                string `json:"explorer_url"`
 	ForfeitAddress             string `json:"forfeit_address"`
-	ListenTransactionStream    string `json:"listen_transaction_stream"`
+	WithTransactionFeed        string `json:"with_transaction_feed"`
 }
 
 func (d storeData) isEmpty() bool {
@@ -34,16 +34,17 @@ func (d storeData) isEmpty() bool {
 	return false
 }
 
-func (d storeData) decode() storetypes.ConfigData {
+func (d storeData) decode() types.Config {
 	network := utils.NetworkFromString(d.Network)
 	roundLifetime, _ := strconv.Atoi(d.RoundLifetime)
 	roundInterval, _ := strconv.Atoi(d.RoundInterval)
 	unilateralExitDelay, _ := strconv.Atoi(d.UnilateralExitDelay)
+	withTransactionFeed, _ := strconv.ParseBool(d.WithTransactionFeed)
 	dust, _ := strconv.Atoi(d.Dust)
 	buf, _ := hex.DecodeString(d.AspPubkey)
 	aspPubkey, _ := secp256k1.ParsePubKey(buf)
 	explorerURL := d.ExplorerURL
-	return storetypes.ConfigData{
+	return types.Config{
 		AspUrl:                     d.AspUrl,
 		AspPubkey:                  aspPubkey,
 		WalletType:                 d.WalletType,
@@ -56,7 +57,7 @@ func (d storeData) decode() storetypes.ConfigData {
 		BoardingDescriptorTemplate: d.BoardingDescriptorTemplate,
 		ExplorerURL:                explorerURL,
 		ForfeitAddress:             d.ForfeitAddress,
-		ListenTransactionStream:    d.ListenTransactionStream == "true",
+		WithTransactionFeed:        withTransactionFeed,
 	}
 }
 
@@ -74,6 +75,6 @@ func (d storeData) asMap() map[string]string {
 		"boarding_descriptor_template": d.BoardingDescriptorTemplate,
 		"explorer_url":                 d.ExplorerURL,
 		"forfeit_address":              d.ForfeitAddress,
-		"listen_transaction_stream":    d.ListenTransactionStream,
+		"with_transaction_feed":        d.WithTransactionFeed,
 	}
 }
