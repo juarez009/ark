@@ -70,12 +70,13 @@ func InitWrapper() js.Func {
 		}
 
 		err := arkSdkClient.InitWithWallet(context.Background(), arksdk.InitWithWalletArgs{
-			ClientType:  args[1].String(),
-			Wallet:      walletSvc,
-			AspUrl:      args[2].String(),
-			Seed:        args[3].String(),
-			Password:    args[4].String(),
-			ExplorerURL: args[6].String(),
+			ClientType:              args[1].String(),
+			Wallet:                  walletSvc,
+			AspUrl:                  args[2].String(),
+			Seed:                    args[3].String(),
+			Password:                args[4].String(),
+			ExplorerURL:             args[6].String(),
+			ListenTransactionStream: true,
 		})
 
 		// Add this log message
@@ -425,6 +426,20 @@ func GetDustWrapper() js.Func {
 			dust = data.Dust
 		}
 		return js.ValueOf(dust)
+	})
+}
+
+func GetTransactionEventChannelWrapper() interface{} {
+	return JSPromise(func(args []js.Value) (interface{}, error) {
+		ch := arkSdkClient.GetTransactionEventChannel()
+		callback := args[0]
+		if callback.Type() != js.TypeFunction {
+			return nil, fmt.Errorf("callback must be a function")
+		}
+		for event := range ch {
+			callback.Invoke(event)
+		}
+		return nil, nil
 	})
 }
 

@@ -47,6 +47,7 @@ func init() {
 	js.Global().Set("getRoundLifetime", GetRoundLifetimeWrapper())
 	js.Global().Set("getUnilateralExitDelay", GetUnilateralExitDelayWrapper())
 	js.Global().Set("getDust", GetDustWrapper())
+	js.Global().Set("getTransactionStream", GetTransactionEventChannelWrapper())
 }
 
 func NewCovenantClient(

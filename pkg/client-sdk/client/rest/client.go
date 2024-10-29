@@ -1,10 +1,14 @@
 package restclient
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -620,48 +624,107 @@ func (t treeFromProto) parse() tree.CongestionTree {
 }
 
 func (c *restClient) GetTransactionsStream(ctx context.Context) (<-chan client.TransactionEvent, func(), error) {
-	ctx, cancel := context.WithTimeout(ctx, c.requestTimeout)
 	eventsCh := make(chan client.TransactionEvent)
 
+	cl := &http.Client{
+		Timeout: time.Second * 0, // No timeout for streaming requests
+	}
+
+	resp, err := cl.Get("http://localhost:7070/v1/transactions")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check if the request was successful
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
 	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer close(eventsCh)
-		defer ticker.Stop()
+		defer resp.Body.Close()
+		reader := bufio.NewReader(resp.Body)
 
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				resp, err := c.svc.ArkServiceGetTransactionsStream(ark_service.NewArkServiceGetTransactionsStreamParams())
-				if err != nil {
-					eventsCh <- client.TransactionEvent{Err: err}
-					return
+			chunk, err := reader.ReadBytes('\n')
+			if err != nil {
+				if err == io.EOF {
+					fmt.Println("Stream ended")
+					break
 				}
+				fmt.Println("Error reading stream:", err)
+				break
+			}
 
-				if resp.Payload.Result.Round != nil {
-					eventsCh <- client.TransactionEvent{
-						Round: &client.RoundTransaction{
-							Txid:                 resp.Payload.Result.Round.Txid,
-							SpentVtxos:           outpointsFromRest(resp.Payload.Result.Round.SpentVtxos),
-							SpendableVtxos:       vtxosFromRest(resp.Payload.Result.Round.SpendableVtxos),
-							ClaimedBoardingUtxos: outpointsFromRest(resp.Payload.Result.Round.ClaimedBoardingUtxos),
-						},
-					}
-				} else if resp.Payload.Result.Redeem != nil {
-					eventsCh <- client.TransactionEvent{
-						Redeem: &client.RedeemTransaction{
-							Txid:           resp.Payload.Result.Redeem.Txid,
-							SpentVtxos:     outpointsFromRest(resp.Payload.Result.Redeem.SpentVtxos),
-							SpendableVtxos: vtxosFromRest(resp.Payload.Result.Redeem.SpendableVtxos),
-						},
-					}
+			resp := ark_service.ArkServiceGetTransactionsStreamOK{}
+			if err := json.Unmarshal(chunk, &resp); err != nil {
+				break
+			}
+			fmt.Printf("AAAAAAA %s\nBBBBB %+v\n", string(chunk), resp)
+
+			if resp.Payload == nil {
+				fmt.Println("SKIP!!!")
+				continue
+			}
+			if resp.Payload.Result.Round != nil {
+				eventsCh <- client.TransactionEvent{
+					Round: &client.RoundTransaction{
+						Txid:                 resp.Payload.Result.Round.Txid,
+						SpentVtxos:           outpointsFromRest(resp.Payload.Result.Round.SpentVtxos),
+						SpendableVtxos:       vtxosFromRest(resp.Payload.Result.Round.SpendableVtxos),
+						ClaimedBoardingUtxos: outpointsFromRest(resp.Payload.Result.Round.ClaimedBoardingUtxos),
+					},
+				}
+			} else if resp.Payload.Result.Redeem != nil {
+				eventsCh <- client.TransactionEvent{
+					Redeem: &client.RedeemTransaction{
+						Txid:           resp.Payload.Result.Redeem.Txid,
+						SpentVtxos:     outpointsFromRest(resp.Payload.Result.Redeem.SpentVtxos),
+						SpendableVtxos: vtxosFromRest(resp.Payload.Result.Redeem.SpendableVtxos),
+					},
 				}
 			}
 		}
 	}()
 
-	return eventsCh, cancel, nil
+	// go func() {
+	// 	ticker := time.NewTicker(1 * time.Second)
+	// 	defer close(eventsCh)
+	// 	defer ticker.Stop()
+
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return
+	// 		case <-ticker.C:
+	// 			resp, err := c.svc.ArkServiceGetTransactionsStream(ark_service.NewArkServiceGetTransactionsStreamParams())
+	// 			if err != nil {
+	// 				eventsCh <- client.TransactionEvent{Err: err}
+	// 				return
+	// 			}
+
+	// 			if resp.Payload.Result.Round != nil {
+	// 				eventsCh <- client.TransactionEvent{
+	// 					Round: &client.RoundTransaction{
+	// 						Txid:                 resp.Payload.Result.Round.Txid,
+	// 						SpentVtxos:           outpointsFromRest(resp.Payload.Result.Round.SpentVtxos),
+	// 						SpendableVtxos:       vtxosFromRest(resp.Payload.Result.Round.SpendableVtxos),
+	// 						ClaimedBoardingUtxos: outpointsFromRest(resp.Payload.Result.Round.ClaimedBoardingUtxos),
+	// 					},
+	// 				}
+	// 			} else if resp.Payload.Result.Redeem != nil {
+	// 				eventsCh <- client.TransactionEvent{
+	// 					Redeem: &client.RedeemTransaction{
+	// 						Txid:           resp.Payload.Result.Redeem.Txid,
+	// 						SpentVtxos:     outpointsFromRest(resp.Payload.Result.Redeem.SpentVtxos),
+	// 						SpendableVtxos: vtxosFromRest(resp.Payload.Result.Redeem.SpendableVtxos),
+	// 					},
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }()
+
+	return eventsCh, nil, nil
 }
 
 func outpointsFromRest(restOutpoints []*models.V1Outpoint) []client.Outpoint {

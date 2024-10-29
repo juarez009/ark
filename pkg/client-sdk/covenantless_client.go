@@ -236,6 +236,7 @@ func (a *covenantlessArkClient) listenForTransactions(ctx context.Context) {
 			if !ok {
 				continue
 			}
+			fmt.Printf("RECEIVED EVENT %+v\n", event)
 
 			if event.Err != nil {
 				log.WithError(event.Err).Error("Error in transaction stream")
@@ -248,6 +249,7 @@ func (a *covenantlessArkClient) listenForTransactions(ctx context.Context) {
 				continue
 			}
 
+			fmt.Println("listenForTransactions")
 			if err := a.store.TransactionStore().
 				AddTransactions(ctx, newPendingBoardingTxs); err != nil {
 				log.WithError(err).Error("Failed to insert new boarding transactions")
@@ -262,7 +264,7 @@ func (a *covenantlessArkClient) listenForTransactions(ctx context.Context) {
 }
 
 func (a *covenantlessArkClient) listenForBoardingUtxos(ctx context.Context) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -274,10 +276,12 @@ func (a *covenantlessArkClient) listenForBoardingUtxos(ctx context.Context) {
 				continue
 			}
 
-			if err := a.store.TransactionStore().
-				AddTransactions(ctx, newPendingBoardingTxs); err != nil {
-				log.WithError(err).Error("Failed to insert new boarding transactions")
-				continue
+			if len(newPendingBoardingTxs) > 0 {
+				if err := a.store.TransactionStore().
+					AddTransactions(ctx, newPendingBoardingTxs); err != nil {
+					log.WithError(err).Error("Failed to insert new boarding transactions")
+					continue
+				}
 			}
 		case <-ctx.Done():
 			return
@@ -291,6 +295,15 @@ func (a *covenantlessArkClient) getBoardingPendingTransactions(
 	oldTxs, err := a.store.TransactionStore().GetAllTransactions(ctx)
 	if err != nil {
 		return nil, err
+	}
+	fmt.Println("OLD TXS", len(oldTxs))
+	for _, tx := range oldTxs {
+		fmt.Println("boarding txid", tx.BoardingTxid)
+		fmt.Println("amount", tx.Amount)
+		fmt.Println("type", tx.Type)
+		fmt.Println("settled", tx.Settled)
+		fmt.Println("createdAt", tx.CreatedAt)
+		fmt.Println("----------------")
 	}
 
 	boardingUtxos, err := a.getClaimableBoardingUtxos(ctx, nil)

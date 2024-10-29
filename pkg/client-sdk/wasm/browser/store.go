@@ -12,11 +12,14 @@ import (
 // TODO: support vtxo and transaction stores localstorage impls.
 type localStorageStore struct {
 	configStore types.ConfigStore
+	txStore     types.TransactionStore
 }
 
 func NewLocalStorageStore() types.Store {
-	configStore := NewConfigStore(js.Global().Get("localStorage"))
-	return &localStorageStore{configStore}
+	store := js.Global().Get("localStorage")
+	configStore := NewConfigStore(store)
+	txStore := NewTxStore(store)
+	return &localStorageStore{configStore, txStore}
 }
 
 func (s *localStorageStore) ConfigStore() types.ConfigStore {
@@ -28,7 +31,7 @@ func (s *localStorageStore) VtxoStore() types.VtxoStore {
 }
 
 func (s *localStorageStore) TransactionStore() types.TransactionStore {
-	return nil
+	return s.txStore
 }
 
 func (s *localStorageStore) Close() {}

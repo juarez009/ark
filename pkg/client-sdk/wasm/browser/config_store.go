@@ -66,6 +66,7 @@ func (s *configStore) AddData(ctx context.Context, data types.Config) error {
 		ExplorerURL:                data.ExplorerURL,
 		ForfeitAddress:             data.ForfeitAddress,
 		BoardingDescriptorTemplate: data.BoardingDescriptorTemplate,
+		WithTransactionFeed:        strconv.FormatBool(data.WithTransactionFeed),
 	}
 	return s.writeData(sd)
 }
