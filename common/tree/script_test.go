@@ -20,26 +20,73 @@ import (
 
 func TestDecodeClosure(t *testing.T) {
 	testCases := []struct {
-		script string
+		name        string
+		script      string
+		closureType interface{}
+		valid       bool
 	}{
 		{
-			script: "a820d6b309eb6725e371c6b73b232492d7889f9800f09b844d1a6e64be607f5b752b876920daf3e1cf88c667052a05995aede0c325695e53c058f8dfde4b12e7d2a381d6e0ac",
+			name:        "MultisigClosure",
+			script:      "21022df8750480ad5b26950b25c7ba79d3e37d75f6407ff1a2749f3486e38694e521ac2103e775fd51f07aa044a9614d7908e407ee2c9d802b938c9a6c4e0216f0f5a3c512ac",
+			closureType: &tree.MultisigClosure{},
+			valid:       true,
 		},
 		{
-			script: "6ea820264f0fff500e57f00a3c12a655def6f76cf22a604c39692afc619f27971aad5788a8206f83c2c07899e898b7900359b0ebde54c1e789d748c2b988ada29d5e2b28df1a88827660877c5f879b646d00677c827660877c5f879b646d5167827c757c827c758768686920e87b6599b5639844ae359f80b762d01478721d654a47bc174105f289b268707bad20873079a0091c9b16abd1f8c508320b07f0d50144d09ccd792ce9c915dac60465ac",
+			name:        "CSVMultisigClosure",
+			script:      "01b2755221022df8750480ad5b26950b25c7ba79d3e37d75f6407ff1a2749f3486e38694e5212103e775fd51f07aa044a9614d7908e407ee2c9d802b938c9a6c4e0216f0f5a3c512ac",
+			closureType: &tree.CSVSigClosure{},
+			valid:       true,
+		},
+		{
+			name:        "CLTVMultisigClosure",
+			script:      "00000001b1755221022df8750480ad5b26950b25c7ba79d3e37d75f6407ff1a2749f3486e38694e5212103e775fd51f07aa044a9614d7908e407ee2c9d802b938c9a6c4e0216f0f5a3c512ac",
+			closureType: &tree.CLTVMultisigClosure{},
+			valid:       true,
+		},
+		{
+			name:        "ConditionMultisigClosure",
+			script:      "516921022df8750480ad5b26950b25c7ba79d3e37d75f6407ff1a2749f3486e38694e521ac2103e775fd51f07aa044a9614d7908e407ee2c9d802b938c9a6c4e0216f0f5a3c512ac",
+			closureType: &tree.ConditionMultisigClosure{},
+			valid:       true,
+		},
+		{
+			// Add an example for an invalid script if applicable
+			name:        "Invalid Script",
+			script:      "5121000000000000000000000000000000000000000000000000000000000000000000ae", // This would be an actual invalid script pattern
+			closureType: &tree.MultisigClosure{},
+			valid:       false,
 		},
 	}
 
 	for _, testCase := range testCases {
-		scriptBytes, err := hex.DecodeString(testCase.script)
-		require.NoError(t, err)
+		t.Run(testCase.name, func(t *testing.T) {
+			scriptBytes, err := hex.DecodeString(testCase.script)
+			require.NoError(t, err)
 
-		closure, err := tree.DecodeClosure(scriptBytes)
-		require.NoError(t, err)
-		require.NotNil(t, closure)
+			closure := testCase.closureType
+			switch c := closure.(type) {
+			case *tree.MultisigClosure:
+				valid, err := c.Decode(scriptBytes)
+				require.NoError(t, err)
+				require.Equal(t, testCase.valid, valid)
+			case *tree.CSVSigClosure:
+				valid, err := c.Decode(scriptBytes)
+				require.NoError(t, err)
+				require.Equal(t, testCase.valid, valid)
+			case *tree.CLTVMultisigClosure:
+				valid, err := c.Decode(scriptBytes)
+				require.NoError(t, err)
+				require.Equal(t, testCase.valid, valid)
+			case *tree.ConditionMultisigClosure:
+				valid, err := c.Decode(scriptBytes)
+				require.NoError(t, err)
+				require.Equal(t, testCase.valid, valid)
+			default:
+				require.Fail(t, "Unexpected closure type")
+			}
+		})
 	}
 }
-
 func TestRoundTripCSV(t *testing.T) {
 	seckey, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)

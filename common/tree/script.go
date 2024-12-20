@@ -777,8 +777,8 @@ func (d *CLTVMultisigClosure) Decode(script []byte) (bool, error) {
 	cltvIndex := bytes.Index(
 		script, []byte{txscript.OP_CHECKLOCKTIMEVERIFY, txscript.OP_DROP},
 	)
-	if cltvIndex == -1 || cltvIndex == 0 {
-		return false, nil
+	if cltvIndex == -1 || cltvIndex < 4 { // Ensure there are at least 4 bytes for locktime
+		return false, nil // or an appropriate error message if needed
 	}
 
 	locktime := script[:cltvIndex]
@@ -786,13 +786,11 @@ func (d *CLTVMultisigClosure) Decode(script []byte) (bool, error) {
 		locktime = locktime[1:]
 	}
 
-	var locktimeValue uint32
-	// read uint32 from bytes
-	if len(locktime) >= 3 {
-		locktimeValue = binary.LittleEndian.Uint32(locktime)
-	} else {
-		locktimeValue = uint32(binary.LittleEndian.Uint16(locktime))
+	if len(locktime) < 4 {
+		return false, fmt.Errorf("locktime in script is less than 4 bytes")
 	}
+
+	locktimeValue := binary.LittleEndian.Uint32(locktime)
 
 	multisigClosure := &MultisigClosure{}
 	valid, err := multisigClosure.Decode(script[cltvIndex+2:])
@@ -928,17 +926,16 @@ func (f *ConditionMultisigClosure) Decode(script []byte) (bool, error) {
 	}
 
 	if len(verifyPositions) == 0 {
-		return false, nil
+		return false, nil // No OP_VERIFY found, hence not a ConditionMultisigClosure
 	}
+	// Take the last OP_VERIFY as this might be the true end of the condition script
 	verifyPos := verifyPositions[len(verifyPositions)-1]
 
 	// Extract and store condition
-	condition := script[:verifyPos-1] // remove OP_VERIFY
-	f.Condition = condition
+	f.Condition = script[:verifyPos-1] // -1 to exclude OP_VERIFY
 
 	// Extract and decode multisig script
 	multisigScript := script[verifyPos:]
-	// Decode multisig closure
 	valid, err := f.MultisigClosure.Decode(multisigScript)
 	if err != nil || !valid {
 		return false, err
